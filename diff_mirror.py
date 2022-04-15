@@ -31,6 +31,10 @@ def get_rpm_list(rpm_dir_path):
             rpm_list.append(ele)
     return rpm_list
 
+
+
+
+
 def diff_rpm_list(rpm_list1,rpm_list2):
     data={
         "version_not_match": {},
@@ -129,7 +133,10 @@ def main():
     parser = argparse.ArgumentParser(description='diff mirror')
     parser.add_argument('--rpm_list_path1', type=str,help='rpm_list_path1')
     parser.add_argument('--rpm_list_path2', type=str,help='rpm_list_path2')
+    parser.add_argument('-o', type=str, help='dst_xlsx',default="diff.xlsx")
     args = parser.parse_args()
+
+    dst_filename=args.o
 
     rpm_list_path1=args.rpm_list_path1
     rpm_list_path2 = args.rpm_list_path2
@@ -148,7 +155,7 @@ def main():
     d=diff_rpm_list(rpm_list_path1_rpm,rpm_list_path2_rpm)
 
     logging.info("write to xlsx")
-    write_to_xlsx(d,"diff.xlsx")
+    write_to_xlsx(d,dst_filename)
     print(json.dumps(d,indent=4,ensure_ascii=False))
 
 if __name__ == '__main__':
