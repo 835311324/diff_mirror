@@ -4,6 +4,8 @@ import collections
 import rpmfile
 import json
 import argparse
+import logging
+from openpyxl  import Workbook
 
 def get_rpm_info(rf):
     r=collections.namedtuple('rpm', ['name', 'arch','version'])
@@ -74,8 +76,56 @@ def get_rpm_file_paths(file_dir):
             if os.path.splitext(f)[-1] == '.rpm':
                 yield "{}/{}".format(root,f)
 
+def write_to_xlsx(data,dest_filename):
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "version_not_match"
+    _ = ws1.cell(column=1, row=1, value="package name")
+    _ = ws1.cell(column=2, row=1, value="version1")
+    _ = ws1.cell(column=3, row=1, value="version2")
+    row = 2
+    for name,vs in data['version_not_match'].items():
+        _ = ws1.cell(column=1,row=row,value=name)
+        _ = ws1.cell(column=2, row=row, value=os.path.basename(vs[0]))
+        _ = ws1.cell(column=3, row=row, value=os.path.basename(vs[1]))
+        row+=1
+
+    ws2 = wb.create_sheet(title='match')
+    _ = ws2.cell(column=1,row=1,value="package name")
+    _ = ws2.cell(column=2,row=2,value="version")
+
+    row = 2
+    for rv in data['match']:
+        _ = ws2.cell(column=1, row=row, value=os.path.dirname(rv))
+        _ = ws2.cell(column=2, row=row, value=os.path.basename(rv))
+        row += 1
+
+    ws3 = wb.create_sheet(title='rpm_list1_only_exist')
+    _ = ws3.cell(column=1, row=1, value="package name")
+    _ = ws3.cell(column=2, row=2, value="version")
+    row = 2
+    for rv in data['rpm_list1_only_exist']:
+        _ = ws3.cell(column=1, row=row, value=os.path.dirname(rv))
+        _ = ws3.cell(column=2, row=row, value=os.path.basename(rv))
+        row += 1
+
+    ws4 = wb.create_sheet(title='rpm_list2_only_exist')
+    _ = ws4.cell(column=1, row=1, value="package name")
+    _ = ws4.cell(column=2, row=2, value="version")
+    row = 2
+    for rv in data['rpm_list2_only_exist']:
+        _ = ws4.cell(column=1, row=row, value=os.path.dirname(rv))
+        _ = ws4.cell(column=2, row=row, value=os.path.basename(rv))
+        row += 1
+    wb.save(filename=dest_filename)
 
 def main():
+    # 日志相关配置
+    level = logging.INFO
+    datefmt = '%m/%d/%Y %I:%M:%S %p'
+    format = '%(asctime)s:%(levelname)s:%(message)s'
+    logging.basicConfig(format=format, datefmt=datefmt, filemode='a', level=level)
+
     parser = argparse.ArgumentParser(description='diff mirror')
     parser.add_argument('--rpm_list_path1', type=str,help='rpm_list_path1')
     parser.add_argument('--rpm_list_path2', type=str,help='rpm_list_path2')
@@ -83,10 +133,22 @@ def main():
 
     rpm_list_path1=args.rpm_list_path1
     rpm_list_path2 = args.rpm_list_path2
+    logging.info("rpm_list_path1={}".format(rpm_list_path1))
+    logging.info("rpm_list_path2={}".format(rpm_list_path2))
+
     rpm_list_path1_rpm=get_rpm_list(rpm_list_path1)
     rpm_list_path2_rpm =get_rpm_list(rpm_list_path2)
 
+    logging.info("rpm_list_path1: {} rpm file".format(len(rpm_list_path1_rpm)))
+    logging.info("rpm_list_path2: {} rpm file".format(len(rpm_list_path2_rpm)))
+    if len(rpm_list_path2_rpm)==0 or len(rpm_list_path1_rpm)==0:
+        exit(1)
+
+    logging.info("start diff rpm list")
     d=diff_rpm_list(rpm_list_path1_rpm,rpm_list_path2_rpm)
+
+    logging.info("write to xlsx")
+    write_to_xlsx(d,"diff.xlsx")
     print(json.dumps(d,indent=4,ensure_ascii=False))
 
 if __name__ == '__main__':
